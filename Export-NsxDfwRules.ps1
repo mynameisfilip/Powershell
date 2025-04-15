@@ -2,16 +2,16 @@
 
 <#
 .SYNOPSIS
-    Powershell script to export NSX-T DFW rules into csv file.
+    Powershell script to export NSX DFW rules into csv file.
 .DESCRIPTION
-    Powershell script to export NSX-T DFW rules into csv file. 
+    Powershell script to export NSX DFW rules into csv file. 
     Each rule is exported including realized source/destination IPs/VMs and service protocol/port number.
 .PARAMETER NsxManager
     String
-    URL of your NSX-T manager instance eg. 'https://nsxmanager.your.domain.local'.
+    URL of your NSX manager instance eg. 'https://nsxmanager.your.domain.local'.
 .PARAMETER Authentication
     String
-    Authentication method to be used for NSX-T rest api calls.
+    Authentication method to be used for NSX rest api calls.
     Possible values: "basic", "certificate"
 .PARAMETER Certificate
     X509Certificate
@@ -23,8 +23,8 @@
     String
     Specifies the name and path for the CSV-based output file.
 .NOTES
-    Depending on NSX-T environment size, the script can generate many API calls. Performance of a Nsx Manager can be impacted.
-    NSX-T manager's SSL cetificate validation is turned off.
+    Depending on NSX environment size, the script can generate many API calls. Performance of a Nsx Manager can be impacted.
+    NSX manager's SSL cetificate validation is turned off.
 .EXAMPLE
     PS> .\Export-NsxDfwRules.ps1 -NsxManager 'https://nsxmanager.your.domain.local' -authentication 'certificate' -certificate (Get-PfxCertificate -FilePath 'yourCert.pfx') -outPath 'output.csv'
     PS> .\Export-NsxDfwRules.ps1 -NsxManager 'https://nsxmanager.your.domain.local' -authentication 'basic' -credentials (get-credential) -outPath 'output.csv'
@@ -60,7 +60,7 @@ param (
 # Functions
 ##########################
 
-# Universal function to invoke NSX-T Rest API call. Returns API response.
+# Universal function to invoke NSX Rest API call. Returns API response.
 function Invoke-NsxApiCall{
     param(
         [Parameter(Mandatory=$true,
@@ -86,14 +86,14 @@ function Invoke-NsxApiCall{
     return $response
 }
 
-# Returns NSX-T Distributed FW policies
+# Returns NSX Distributed FW policies
 function Get-NsxDfwPolicies(){
     $endpoint= '/policy/api/v1/infra/domains/default/security-policies' 
     $r = Invoke-NsxApiCall -endpoint $endpoint
     return $r.results
 }
 
-# Returns NSX-T DFW rules for given poilcy
+# Returns NSX DFW rules for given poilcy
 function Get-NsxDfwPolicyRules{
     param(
         [string]$policyId,
@@ -111,7 +111,7 @@ function Get-NsxDfwPolicyRules{
     return $r.rules
 }
 
-# Returns realized NSX-T Inventory Group Member (IP address or virtual machines)
+# Returns realized NSX Inventory Group Member (IP address or virtual machines)
 function Get-NsxInventoryGroupMember{
     param(
        # [string]$groupId,
@@ -149,7 +149,7 @@ function Get-NsxInventoryGroupMember{
     return $members
 }
 
-#Returns NSX-T Inventory Service Entries. NestedServiceServiceEntries are searched recursively.
+#Returns NSX Inventory Service Entries. NestedServiceServiceEntries are searched recursively.
 function Get-NsxInventoryServiceEntries{
     param(
         [string]$servicePath,
@@ -264,7 +264,7 @@ function Join-ServiceEntries{
 ##########################
 # Main Script logic
 ##########################
-# Get NSX-T DFW policies
+# Get NSX DFW policies
 $policies = Get-NsxDfwPolicies
 
 # Exit the script if no policy found or api call failed.
@@ -282,7 +282,7 @@ write-host "Nsx DFW policies count: $($policies.count)"
 for ($i = 0; $i -lt $policies.Count; $i++) {
 
     $percentage = [math]::Round(($i / $policies.Count)*100)
-    Write-Progress -Activity 'Processing DFW policies' -Status "$i% Complete: $($policies[$i].display_name)" -PercentComplete $percentage 
+    Write-Progress -Activity 'Processing DFW policies' -Status "$percentage% Complete: $($policies[$i].display_name)" -PercentComplete $percentage 
 
         $rules = Get-NsxDfwPolicyRules -policyId $policies[$i].id
         foreach($rule in $rules) {
@@ -311,7 +311,7 @@ for ($i = 0; $i -lt $policies.Count; $i++) {
 write-host "Processing rules..."
 
 #Parse rulesOutput to desired csv format
-$rulesOutput | Select-Object policy, id, action, display_name,`
+$rulesOutput | Select-Object policy, id, action, rule_name,`
                 @{name='source_groups'; expression={([string[]]$_.source_groups) -join ', '}},`
                 @{name='source_vms'; expression={([string[]]$_.source_vms) -join ', '}},`
                 @{name='source_ips'; expression={([string[]]$_.source_ips) -join ', '}},`
